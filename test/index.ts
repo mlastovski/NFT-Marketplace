@@ -18,63 +18,96 @@ describe("Marketplace", function () {
 	let MarketplaceFactory: ContractFactory;
   let marketplace: Contract;
   let owner: SignerWithAddress;
-  let creator: SignerWithAddress;
   let addr1: SignerWithAddress;
   let addr2: SignerWithAddress;
 
   beforeEach(async function () {
-    [owner, creator, addr1, addr2] = await ethers.getSigners();
+    [owner, addr1, addr2] = await ethers.getSigners();
 
-		//deploy erc20
 		ERC20Factory = await ethers.getContractFactory("ERC20");
 		erc20 = await ERC20Factory.deploy("ShitCoin", "SHT", 18);
 		await erc20.deployed();
 
-    //deploy erc721
     ERC721Factory = await ethers.getContractFactory("NFT721");
     erc721 = await ERC721Factory.deploy();
     await erc721.deployed();
 
-    //deploy erc1155
-    // ERC1155Factory = await ethers.getContractFactory("NFT1155");
-    // erc1155 = await ERC1155Factory.deploy();
-    // await erc1155.deployed();
+    ERC1155Factory = await ethers.getContractFactory("NFT1155");
+    erc1155 = await ERC1155Factory.deploy();
+    await erc1155.deployed();
 
-    //deploy Marketplace
     MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-    marketplace = await MarketplaceFactory.deploy(erc20.address, erc721.address, owner.address);
+    marketplace = await MarketplaceFactory.deploy(erc20.address, erc721.address, erc1155.address);
     await marketplace.deployed();
 
-    //grantRoles to mint NFT
     await erc721.grantRole(erc721.OWNER(), marketplace.address);
-    // await erc1155.grantRole(erc1155.CREATOR(), marketplace.address);
+    await erc1155.grantRole(erc1155.OWNER(), marketplace.address);
 
-    //deposit and approve erc20 tokens to user2, user3
-    await erc20.mint(addr1.address, 100000);
-    await erc20.mint(addr2.address, 100000);
-    await erc20.connect(addr1).approve(marketplace.address, 100000);
-    await erc20.connect(addr2).approve(marketplace.address, 100000);
+    await erc20.mint(addr1.address, 200000);
+    await erc20.mint(addr2.address, 200000);
+    await erc20.connect(addr1).approve(marketplace.address, 200000);
+    await erc20.connect(addr2).approve(marketplace.address, 200000);
 
-    //mint and approve erc721 nft
-		console.log("before mint 1");
     await marketplace.connect(owner).mint721(owner.address, "/testURI_id1");
-		console.log("mint 1");
     await marketplace.connect(owner).mint721(owner.address, "/testURI_id2");
     await erc721.connect(owner).approve(marketplace.address, 1);
     await erc721.connect(owner).approve(marketplace.address, 2);
 
-    //mint and approve erc1155 nft
-    // await marketplace.connect(creator).mint1155(creator.address, 3, 100, "0x");
-    // await marketplace.connect(creator).mint1155(creator.address, 4, 100, "0x");
-    // await erc1155.connect(creator).setApprovalForAll(marketplace.address, true);
+    await marketplace.connect(owner).mint1155(owner.address, 3, 2000, "0x");
+    await marketplace.connect(owner).mint1155(owner.address, 4, 2000, "0x");
+    await erc1155.connect(owner).setApprovalForAll(marketplace.address, true);
   });
 
-	it("Selling: Should list an item for sale", async function () {
+	it("Selling (Listing function): Should list an item for sale", async function () {
 		await marketplace.connect(owner).listItem(721, 1, 1, 100);
 	});
 
-	it("Selling: Should fail to list an item for sale (721 is non-fungible, setting more than 1 is impossible)", async function () {
-		expect(await marketplace.connect(owner).listItem(721, 1, 2, 100)).to.be.revertedWith("721 is non-fungible, setting more than 1 is impossible");
+	it("Selling (Listing function): Should fail to list an item for sale (Not 1)", async function () {
+		await expect(marketplace.connect(owner).listItem(721, 1, 2, 100)).to.be.revertedWith("Not 1");
 	});
 
+	it("Selling (Listing function): Should fail to list an item for sale (Wrong standart)", async function () {
+		await expect(marketplace.connect(owner).listItem(722, 1, 1, 100)).to.be.revertedWith("Wrong standart");
+	});
+
+  it("Selling (Listing function): Should fail to list an item for sale (Must be at least 1 Wei)", async function () {
+		await expect(marketplace.connect(owner).listItem(721, 1, 1, 0)).to.be.revertedWith("Must be at least 1 Wei");
+	});
+
+  it("Selling (Listing function): Should fail to list an item for sale (Not an owner)", async function () {
+		await expect(marketplace.connect(addr1).listItem(721, 1, 1, 100)).to.be.revertedWith("Not an owner");
+	});
+
+  it("Selling (Buy function): Should buy the listed item", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    await marketplace.connect(addr1).buyItem(1);
+  });
+
+  it("Selling (Buy function): Should fail to buy the listed item (Nothing to buy)", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    await marketplace.connect(addr1).buyItem(1);
+    await expect(marketplace.connect(addr1).buyItem(1)).to.be.revertedWith("Nothing to buy");
+  });
+
+  it("Selling (Cancel function): Should cancel the selling of an listed item", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    await marketplace.connect(owner).cancel(1);
+  });
+
+  it("Selling (Cancel function): Should fail to cancel the selling of an listed item (Nothing to cancel)", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    await marketplace.connect(owner).cancel(1);
+    await expect(marketplace.connect(owner).cancel(1)).to.be.revertedWith("Nothing to cancel");
+  });
+
+  it("Selling (Cancel function): Should fail to cancel the selling of an listed item (Not an owner)", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    await expect(marketplace.connect(addr1).cancel(1)).to.be.revertedWith("Not an owner");
+  });
+
+  it("Selling (Info function): Should get listing info", async function () {
+    await marketplace.connect(owner).listItem(721, 1, 1, 100);
+    const info = await marketplace.connect(owner).getListingInfo(1);
+    console.log(info);
+  });
 });

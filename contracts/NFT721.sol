@@ -3,7 +3,6 @@ pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "hardhat/console.sol";
 
 contract NFT721 is ERC721, AccessControl {
     uint256 tokenCounter;
