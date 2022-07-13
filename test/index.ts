@@ -58,8 +58,12 @@ describe("Marketplace", function () {
     await erc1155.connect(owner).setApprovalForAll(marketplace.address, true);
   });
 
-	it("Selling (Listing function): Should list an item for sale", async function () {
+	it("Selling (Listing function): Should list a 721 item for sale", async function () {
 		await marketplace.connect(owner).listItem(721, 1, 1, 100);
+	});
+
+  it("Selling (Listing function): Should list 1155 items for sale", async function () {
+		await marketplace.connect(owner).listItem(1155, 3, 10, 100);
 	});
 
 	it("Selling (Listing function): Should fail to list an item for sale (Not 1)", async function () {
