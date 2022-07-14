@@ -11,9 +11,9 @@ task("mint", "Mint an NFT (ERC721 || ERC1155) using Marketplace.sol")
   .setAction(async function (taskArgs, hre) {
     let transaction;
 
-    const marketplaceAddress = "0xC0a042A1C66e252cB2370ED36BE34A25b4FD559F";
-    const nft721address = "0x05500FA8d5662CEa87a302d1547C51eC05E1054C";
-    const nft1155address = "0xA39ad3076c6FA378dc017E534a0931B5801bC6b7";
+    const marketplaceAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
+    const nft721address = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+    const nft1155address = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 
     const [owner] = await hre.ethers.getSigners();
 

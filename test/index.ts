@@ -5,6 +5,8 @@ import { Contract, ContractFactory } from "ethers";
 import * as dotenv from "dotenv";
 dotenv.config();
 
+// TODO: equals check in various tests
+
 describe("Marketplace.sol", function () {
 	let ERC20Factory : ContractFactory;
 	let erc20: Contract;
