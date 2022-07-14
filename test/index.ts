@@ -1,9 +1,8 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
-import { BigNumber } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { Contract, ContractFactory } from "ethers";
+import { Contract, ContractFactory, providers } from "ethers";
 import * as dotenv from "dotenv";
 import { getContractFactory } from "hardhat/types";
 dotenv.config();
@@ -20,6 +19,7 @@ describe("Marketplace", function () {
   let owner: SignerWithAddress;
   let addr1: SignerWithAddress;
   let addr2: SignerWithAddress;
+  const days = 86400;
 
   beforeEach(async function () {
     [owner, addr1, addr2] = await ethers.getSigners();
@@ -66,6 +66,10 @@ describe("Marketplace", function () {
 		await marketplace.connect(owner).listItem(1155, 3, 10, 100);
 	});
 
+  it("Selling (Listing function): Should fail to list 1155 items for sale (Insufficient balance)", async function () {
+		await expect(marketplace.connect(owner).listItem(1155, 3, 1000000000000, 100)).to.be.revertedWith("Insufficient balance");
+	});
+
 	it("Selling (Listing function): Should fail to list an item for sale (Not 1)", async function () {
 		await expect(marketplace.connect(owner).listItem(721, 1, 2, 100)).to.be.revertedWith("Not 1");
 	});
@@ -82,9 +86,14 @@ describe("Marketplace", function () {
 		await expect(marketplace.connect(addr1).listItem(721, 1, 1, 100)).to.be.revertedWith("Not an owner");
 	});
 
-  it("Selling (Buy function): Should buy the listed item", async function () {
+  it("Selling (Buy function): Should buy the 721 listed item", async function () {
     await marketplace.connect(owner).listItem(721, 1, 1, 100);
     await marketplace.connect(addr1).buyItem(1);
+  });
+
+  it("Selling (Buy function): Should buy the 1155 listed item", async function () {
+    await marketplace.connect(owner).listItem(1155, 3, 10, 100);
+    await marketplace.connect(addr1).buyItem(3);
   });
 
   it("Selling (Buy function): Should fail to buy the listed item (Nothing to buy)", async function () {
@@ -93,9 +102,14 @@ describe("Marketplace", function () {
     await expect(marketplace.connect(addr1).buyItem(1)).to.be.revertedWith("Nothing to buy");
   });
 
-  it("Selling (Cancel function): Should cancel the selling of an listed item", async function () {
+  it("Selling (Cancel function): Should cancel the selling of a 721 listed item", async function () {
     await marketplace.connect(owner).listItem(721, 1, 1, 100);
     await marketplace.connect(owner).cancel(1);
+  });
+
+  it("Selling (Cancel function): Should cancel the selling of a 1155 listed item", async function () {
+    await marketplace.connect(owner).listItem(1155, 3, 10, 100);
+    await marketplace.connect(owner).cancel(3);
   });
 
   it("Selling (Cancel function): Should fail to cancel the selling of an listed item (Nothing to cancel)", async function () {
@@ -111,7 +125,161 @@ describe("Marketplace", function () {
 
   it("Selling (Info function): Should get listing info", async function () {
     await marketplace.connect(owner).listItem(721, 1, 1, 100);
-    const info = await marketplace.connect(owner).getListingInfo(1);
+    await marketplace.connect(owner).getListingInfo(1);
+  });
+
+  it("Auction (Listing function): Should list a 721 item", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+  });
+
+  it("Auction (Listing function): Should list a 1155 item", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 1000);
+  });
+
+  it("Auction (Listing function): Should fail to list an item (Wrong standart)", async function () {
+    await expect(marketplace.connect(owner).listItemOnAuction(1154, 3, 10, 1000)).to.be.revertedWith("Wrong standart");
+  });
+
+  it("Auction (Listing function): Should fail to list an item (Must be at least 1 Wei)", async function () {
+    await expect(marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 0)).to.be.revertedWith("Must be at least 1 Wei");
+  });
+
+  it("Auction (Listing function): Should fail to list a 721 item (Not 1)", async function () {
+    await expect(marketplace.connect(owner).listItemOnAuction(721, 1, 10, 10)).to.be.revertedWith("Not 1");
+  });
+
+  it("Auction (Listing function): Should fail to list a 721 item (Not an owner)", async function () {
+    await expect(marketplace.connect(addr1).listItemOnAuction(721, 1, 1, 10)).to.be.revertedWith("Not an owner");
+  });
+
+  it("Auction (Listing function): Should fail to list a 1155 item (Insufficient balance)", async function () {
+    await expect(marketplace.connect(addr1).listItemOnAuction(1155, 3, 10000000000, 10)).to.be.revertedWith("Insufficient balance");
+  });
+
+  it("Auction (Bid function): Should make a bid", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+  });
+
+  it("Auction (Bid function): Should fail to make a bid (No such lot)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await expect(marketplace.connect(addr1).makeBid(1, 200)).to.be.revertedWith("No such lot");
+  });
+
+  it("Auction (Bid function): Should fail to make a bid (Wrong amount)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await expect(marketplace.connect(addr1).makeBid(0, 100)).to.be.revertedWith("Wrong amount");
+  });
+
+  it("Auction (Bid function): Should fail to make a bid (Lot is outdated)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    await expect(marketplace.connect(addr1).makeBid(0, 200)).to.be.revertedWith("Lot is outdated");
+  });
+
+  it("Auction (Bid function): Should transfer back previous highest bid", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+  });
+
+  it("Auction (Finish function): Should finish (4 bids, 4 days)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+    await marketplace.connect(addr1).makeBid(0, 400);
+    await marketplace.connect(addr2).makeBid(0, 500);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+  });
+
+  it("Auction (Finish function): Should finish (0 bids, 4 days)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+  });
+
+  it("Auction (Finish function): Should finish (2 bids, 4 days)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(721, 1, 1, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+  });
+
+  it("Auction (Finish function): Should finish (2 bids, 4 days, 1155)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+  });
+
+  it("Auction (Finish function): Should finish (4 bids, 4 days, 1155)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+    await marketplace.connect(addr1).makeBid(0, 400);
+    await marketplace.connect(addr2).makeBid(0, 500);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+  });
+
+  it("Auction (Finish function): Should fail to finish (No such lot)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await expect(marketplace.connect(owner).finishAuction(1)).to.be.revertedWith("No such lot");
+  });
+
+  it("Auction (Finish function): Should fail to finish (Lot is outdated)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+
+    await ethers.provider.send('evm_increaseTime', [4 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await marketplace.connect(owner).finishAuction(0);
+    await expect(marketplace.connect(owner).finishAuction(0)).to.be.revertedWith("Lot is outdated");
+  });
+
+  it("Auction (Finish function): Should fail to finish (Wrong timestamp)", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+
+    await ethers.provider.send('evm_increaseTime', [2 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    await expect(marketplace.connect(owner).finishAuction(0)).to.be.revertedWith("Wrong timestamp");
+  });
+
+  it("Auction (Info function): Should get lot info", async function () {
+    await marketplace.connect(owner).listItemOnAuction(1155, 3, 10, 100);
+    await marketplace.connect(addr1).makeBid(0, 200);
+    await marketplace.connect(addr2).makeBid(0, 300);
+    await marketplace.connect(addr1).makeBid(0, 400);
+    await marketplace.connect(addr2).makeBid(0, 500);
+
+    await ethers.provider.send('evm_increaseTime', [5 * days]);
+    await ethers.provider.send('evm_mine', []);
+    
+    const info = await marketplace.connect(owner).getLotInfo(0);
     console.log(info);
   });
 });

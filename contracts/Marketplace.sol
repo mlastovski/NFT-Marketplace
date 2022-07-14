@@ -156,7 +156,7 @@ contract Marketplace is AccessControl, IERC1155Receiver {
                 _id, 
                 _amount, 
                 msg.sender, 
-                uint256(block.timestamp), 
+                block.timestamp, 
                 _startingPrice, 
                 0, 
                 _startingPrice, 
@@ -172,7 +172,7 @@ contract Marketplace is AccessControl, IERC1155Receiver {
     function makeBid(uint256 _id, uint256 _amount) public {
         require(_itemsOnAuction.length > _id, "No such lot");
         ItemOnAuction storage lot = _itemsOnAuction[_id];
-        require(lot.startingTime + lotActiveTime > block.timestamp, "Lot is outdated");
+        require(block.timestamp - lot.startingTime < lotActiveTime, "Lot is outdated");
         require(_amount > lot.winningBid, "Wrong amount");
 
         erc20.transferFrom(msg.sender, address(this), _amount);
@@ -192,7 +192,7 @@ contract Marketplace is AccessControl, IERC1155Receiver {
         require(_itemsOnAuction.length > _id, "No such lot");
         ItemOnAuction storage lot = _itemsOnAuction[_id];
         require(!lot.complete, "Lot is outdated");
-        require(lot.startingTime + lotActiveTime <= block.timestamp, "Wrong timestamp");
+        require(block.timestamp - lot.startingTime >= lotActiveTime, "Wrong timestamp");
 
         lot.complete = true;
 
