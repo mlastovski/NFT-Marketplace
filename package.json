@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/mlastovski/NFT-Marketplace#readme",
   "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^1.0.1",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.2",
     "@nomiclabs/hardhat-ethers": "^2.1.0",
     "hardhat": "^2.10.0",
     "ts-node": "^10.8.2",
@@ -29,6 +29,7 @@
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@openzeppelin/contracts": "^4.7.0",
     "dotenv": "^16.0.1",
+    "hardhat-contract-sizer": "^2.6.1",
     "hardhat-gas-reporter": "^1.0.8"
   }
 }

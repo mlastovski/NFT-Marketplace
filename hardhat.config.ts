@@ -8,6 +8,7 @@ import "solidity-coverage";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
+import "hardhat-contract-sizer";
 
 dotenv.config();
 
@@ -21,13 +22,19 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.11",
+    version: "0.8.15",
     settings: {
       optimizer: {
         enabled: true,
         runs: 200
       }
     }
+  },
+
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
   },
 
   networks: {

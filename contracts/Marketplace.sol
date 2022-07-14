@@ -51,21 +51,66 @@ contract Marketplace is AccessControl, IERC1155Receiver {
     bytes32 public constant OWNER = keccak256(abi.encodePacked("OWNER"));
 
     // Events for selling functionality
-    event ListItem(uint256 _standart, uint256 _id, uint256 _amount, address _seller, address _owner, uint256 _price);
-    event BuyItem(uint256 _standart, uint256 _id, uint256 _amount, address _seller, address _buyer, uint256 _price);
-    event CancelItem(uint256 _standart, uint256 _id, uint256 _amount, address _seller, uint256 _price);
+    event ListItem(
+        uint256 _standart, 
+        uint256 _id, 
+        uint256 _amount, 
+        address _seller, 
+        address _owner, 
+        uint256 _price
+    );
+    
+    event BuyItem(
+        uint256 _standart, 
+        uint256 _id, 
+        uint256 _amount, 
+        address _seller, 
+        address _buyer, 
+        uint256 _price
+    );
+
+    event CancelItem(
+        uint256 _standart, 
+        uint256 _id, 
+        uint256 _amount, 
+        address _seller, 
+        uint256 _price
+    );
 
     // Events for auction functionality
-    event ListItemOnAuction(uint256 _index, uint256 _standart, uint256 _id, uint256 _amount, address _seller, uint256 _startingPrice);
-    event MakeBid(uint256 _id, uint256 _amount, address _from);
-    event AuctionFinished(uint256 _index, uint256 _standart, uint256 _id, uint256 _amount, address _seller, uint256 _startingPrice, address _winner, uint256 _winningPrice, uint256 _bidsQuantity);
+    event ListItemOnAuction(
+        uint256 _index, 
+        uint256 _standart, 
+        uint256 _id, 
+        uint256 _amount, 
+        address _seller, 
+        uint256 _startingPrice
+    );
+
+    event MakeBid(
+        uint256 _id, 
+        uint256 _amount, 
+        address _from
+    );
+
+    event AuctionFinished(
+        uint256 _index, 
+        uint256 _standart, 
+        uint256 _id, 
+        uint256 _amount, 
+        address _seller, 
+        uint256 _startingPrice, 
+        address _winner, 
+        uint256 _winningPrice, 
+        uint256 _bidsQuantity
+    );
 
     constructor(address _erc20, address _erc721, address _erc1155) {
-        _grantRole(OWNER, msg.sender);
-
         erc20 = IERC20(_erc20);
         nft721 = IERC721(_erc721);
         nft1155 = IERC1155(_erc1155);
+
+        _grantRole(OWNER, msg.sender);
     }
 
     function listItem(uint256 _standart, uint256 _id, uint256 _amount, uint256 _price) public {
@@ -75,6 +120,7 @@ contract Marketplace is AccessControl, IERC1155Receiver {
         if (_standart == 721) {
             require(_amount == 1, "Not 1");
             require(nft721.ownerOf(_id) == msg.sender, "Not an owner");
+            
             nft721.transferFrom(msg.sender, address(this), _id);
 
             _itemsOnSale[_id] = ItemOnSale(
@@ -88,6 +134,7 @@ contract Marketplace is AccessControl, IERC1155Receiver {
             );
         } else {
             require(nft1155.balanceOf(msg.sender, _id) >= _amount, "Insufficient balance");
+
             nft1155.safeTransferFrom(msg.sender, address(this), _id, _amount, "");
             
             _itemsOnSale[_id] = ItemOnSale(
@@ -101,7 +148,14 @@ contract Marketplace is AccessControl, IERC1155Receiver {
             );
         }
 
-        emit ListItem(_standart, _id, _amount, msg.sender, address(this), _price);
+        emit ListItem(
+            _standart, 
+            _id, 
+            _amount, 
+            msg.sender, 
+            address(this), 
+            _price
+        );
     }
 
     function buyItem(uint256 _id) public {
@@ -166,7 +220,14 @@ contract Marketplace is AccessControl, IERC1155Receiver {
 
         uint256 lotIndex = _itemsOnAuction.length - 1;   
 
-        emit ListItemOnAuction(lotIndex, _standart, _id, _amount, msg.sender, _startingPrice);   
+        emit ListItemOnAuction(
+            lotIndex, 
+            _standart, 
+            _id, 
+            _amount, 
+            msg.sender, 
+            _startingPrice
+        );   
     }
 
     function makeBid(uint256 _id, uint256 _amount) public {
@@ -229,27 +290,15 @@ contract Marketplace is AccessControl, IERC1155Receiver {
         nft1155.mint(_to, _id, _amount, _data);
     }
 
-    function getListingInfo(uint256 _id) public view returns (uint256, uint256, uint256, address, address, uint256, bool) {
-        return(
-            _itemsOnSale[_id].standart, 
-            _itemsOnSale[_id].id, 
-            _itemsOnSale[_id].amount, 
-            _itemsOnSale[_id].seller, 
-            _itemsOnSale[_id].owner, 
-            _itemsOnSale[_id].price, 
-            _itemsOnSale[_id].listed
-        );
-    }
-
     function getLotInfo(uint256 _id) public view returns (ItemOnAuction memory lot) {
         return _itemsOnAuction[_id];
     }
 
-    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data) external pure returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
         return bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"));
     }
 
-    function onERC1155BatchReceived(address operator, address from, uint256[] calldata ids, uint256[] calldata values, bytes calldata data) external pure returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) external pure returns (bytes4) {
         return bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"));
     }
 }

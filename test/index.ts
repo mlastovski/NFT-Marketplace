@@ -1,10 +1,8 @@
 import { expect } from "chai";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { Contract, ContractFactory, providers } from "ethers";
+import { Contract, ContractFactory } from "ethers";
 import * as dotenv from "dotenv";
-import { getContractFactory } from "hardhat/types";
 dotenv.config();
 
 describe("Marketplace", function () {
@@ -121,11 +119,6 @@ describe("Marketplace", function () {
   it("Selling (Cancel function): Should fail to cancel the selling of an listed item (Not an owner)", async function () {
     await marketplace.connect(owner).listItem(721, 1, 1, 100);
     await expect(marketplace.connect(addr1).cancel(1)).to.be.revertedWith("Not an owner");
-  });
-
-  it("Selling (Info function): Should get listing info", async function () {
-    await marketplace.connect(owner).listItem(721, 1, 1, 100);
-    await marketplace.connect(owner).getListingInfo(1);
   });
 
   it("Auction (Listing function): Should list a 721 item", async function () {
@@ -279,7 +272,6 @@ describe("Marketplace", function () {
     await ethers.provider.send('evm_increaseTime', [5 * days]);
     await ethers.provider.send('evm_mine', []);
     
-    const info = await marketplace.connect(owner).getLotInfo(0);
-    console.log(info);
+    await marketplace.connect(owner).getLotInfo(0);
   });
 });
